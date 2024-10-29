@@ -1,27 +1,8 @@
-UI.AddCheckbox("Enable killsounds");
 var screen_size = Global.GetScreenSize();
-UI.AddSliderInt("Width", 1, screen_size[0]);
-UI.AddSliderInt("Height", 1, screen_size[1]);
-UI.AddSliderInt("X pos", 1, screen_size[0]);
-UI.AddSliderInt("Y pos", 1, screen_size[1]);
-var checker = UI.GetValue("Script Items", "Enable killsounds");
-var count = 0;
-var i = 0;
-var j = 0;
-localplayer_index = Entity.GetLocalPlayer();
-	
-function killcount()
-{	
-    attacker = Event.GetInt("attacker");
-	victim = Event.GetInt("userid");
-    attacker_index = Entity.GetEntityFromUserID(attacker);
-	victim_index = Entity.GetEntityFromUserID(victim);
-	attacker_me = Entity.IsLocalPlayer(attacker_index);
-	victim_enemy = Entity.IsEnemy(victim_index);
-	name = Entity.GetName(Entity.GetWeapon(localplayer_index));
-	started = Globals.Realtime();
-	
-	var killsound = [ "",
+var kill_count = 0;
+var render_time = 0;
+var knife_kill = false;
+const killsound = [ "",
     "C:\\male\\firstblood1_ultimate.wav",
     "C:\\male\\doublekill1_ultimate.wav",
     "C:\\male\\triplekill_ultimate.wav",
@@ -31,60 +12,7 @@ function killcount()
     "C:\\male\\multikill.wav",
     "C:\\male\\monsterkill.wav",
     ];
-	
-	if (checker == 1) {
-	if (attacker_me) {
-		if (name == "bayonet" || name == "flip knife" || name == "gut knife" || name == "karambit" || name == "m9 bayonet" ||
-			name == "falchion knife" || name == "bowie knife" || name == "butterfly knife" || name == "shadow daggers" ||
-			name == "ursus knife" || name == "navaja knife" || name == "stiletto knife" || name == "skeleton knife" ||
-			name == "huntsman knife" || name == "talon knife" || name == "classic knife" || name == "paracord knife" ||
-			name == "survival knife" || name == "nomad knife" || name == "knife") {
-			j = 1;
-		}
-	headshot = Event.GetInt("headshot");
-	count++;
-	i = 0;
-	}
-	
-	if (count > 8) {
-		count = 8;
-	}
-	
-	if (Entity.GetEntityFromUserID(Event.GetInt("attacker")) !== Entity.GetLocalPlayer()) return;
-	if (Entity.GetEntityFromUserID(Event.GetInt("userid")) == Entity.GetLocalPlayer()) return;
-	
-	if (headshot == 1) {
-		Sound.Play("C:\\male\\headshot2_ultimate.wav");
-	}
-	if (Entity.IsAlive(localplayer_index) && headshot != 1 && j != 1) {
-	if (count > 0) {
-        Sound.Play(killsound[count]);
-        }
-	}
-	if (j == 1) {
-		Sound.Play("C:\\male\\knifed.wav");
-	}
-	}
-}
-
-function reset()
-{
-	count = 0;
-}
-
-Global.RegisterCallback("player_death", "killcount");
-Global.RegisterCallback("round_start", "reset");
-Global.RegisterCallback("player_connect_full", "reset");
-Global.RegisterCallback("client_disconnect", "reset");
-Global.RegisterCallback("round_prestart", "reset");
-
-function on_draw() 
-{	
-	width = UI.GetValue("Script Items", "Width");
-	height = UI.GetValue("Script Items", "Height");
-	x_coord = UI.GetValue("Script Items", "X pos");
-	y_coord = UI.GetValue("Script Items", "Y pos");
-	var picture = [ "",
+const picture = [ "",
 	"C:\\male\\xeon_kill_1.png",
 	"C:\\male\\xeon_kill_2.png",
 	"C:\\male\\xeon_kill_3.png",
@@ -94,33 +22,112 @@ function on_draw()
 	"C:\\male\\xeon_kill_7.png",
 	"C:\\male\\xeon_kill_8.png",
 	];
+const knife_names = [
+	"bayonet", "flip knife", "gut knife", "karambit",
+	"m9 bayonet", "falchion knife", "bowie knife", "butterfly knife",
+	"shadow daggers", "ursus knife", "navaja knife", "stiletto knife",
+	"skeleton knife", "huntsman knife", "talon knife", "classic knife",
+	"paracord knife", "survival knife", "nomad knife", "knife",
+];
+const headshot_arr = ["C:\\male\\headshot2_ultimate.wav", "C:\\male\\xeon_kill_headshot.png"];
+const knife_arr = ["C:\\male\\knifed.wav", "C:\\male\\xeon_kill_knife.png"];
+
+UI.AddCheckbox("Enable killsounds");
+UI.AddSliderInt("Width", 1, screen_size[0]);
+UI.AddSliderInt("Height", 1, screen_size[1]);
+UI.AddSliderInt("X pos", 1, screen_size[0]);
+UI.AddSliderInt("Y pos", 1, screen_size[1]);
+var enabled = UI.GetValue("Script Items", "Enable killsounds");
+
+function killcount()
+{	
+    var attacker = Event.GetInt("attacker");
+    var attacker_index = Entity.GetEntityFromUserID(attacker);
+	var attacker_me = Entity.IsLocalPlayer(attacker_index);
+	var weapon_name = Entity.GetName(Entity.GetWeapon(localplayer_index));
 	
-	if (Entity.IsAlive(localplayer_index) && headshot != 1 && j != 1) {
-	if (count > 0) {
-	render = Render.AddTexture(picture[count]);
-	if (i < 256) {
-	Render.TexturedRect(x_coord, y_coord, width, height, render);
-	i++;
-	}
-	}
-	}
-	if (Entity.IsAlive(localplayer_index) && headshot == 1) {
-	head_shot = Render.AddTexture("C:\\male\\xeon_kill_headshot.png");
-	if (i < 256) {
-	Render.TexturedRect(x_coord, y_coord, width, height, head_shot);
-	i++;
-	}
-	}
-	if (j == 1) {
-	knife_kill = Render.AddTexture("C:\\male\\xeon_kill_knife.png");
-	if (i < 256) {
-	Render.TexturedRect(x_coord, y_coord, width, height, knife_kill);
-	i++;
-	if (i == 255) {
-		j = 0;
-	}
-	}
+	if (enabled) 
+	{
+		if (attacker_me) 
+		{
+			knife_kill = knife_names.includes(weapon_name);
+			headshot = Event.GetInt("headshot");
+			kill_count++;
+			render_time = 0;
+		}
+	
+		if (kill_count > 8)
+			kill_count = 8;
+		
+		if (Entity.GetEntityFromUserID(Event.GetInt("attacker")) !== Entity.GetLocalPlayer()) return;
+		if (Entity.GetEntityFromUserID(Event.GetInt("userid")) == Entity.GetLocalPlayer()) return;
+		
+		if (headshot)
+			Sound.Play(headshot_arr[0]);
+		
+		if (Entity.IsAlive(localplayer_index) && !headshot && !knife_kill) 
+		{
+			if (kill_count > 0) 
+				Sound.Play(killsound[count]);
+		}
+
+		if (knife_kill) 
+			Sound.Play(knife_arr[0]);
 	}
 }
+
+function on_draw() 
+{	
+	var width = UI.GetValue("Script Items", "Width");
+	var height = UI.GetValue("Script Items", "Height");
+	var x_coord = UI.GetValue("Script Items", "X pos");
+	var y_coord = UI.GetValue("Script Items", "Y pos");
+	
+	if (Entity.IsAlive(localplayer_index) && !headshot && !knife_kill) 
+	{
+		if (count > 0) 
+		{
+			var render_pic = Render.AddTexture(picture[count]);
+			if (render_time < 256) 
+			{
+				Render.TexturedRect(x_coord, y_coord, width, height, render_pic);
+				render_time++;
+			}
+		}
+	}
+
+	if (Entity.IsAlive(localplayer_index) && headshot) 
+	{
+		var headshot_pic = Render.AddTexture(headshot_arr[1]);
+		if (render_time < 256) 
+		{
+			Render.TexturedRect(x_coord, y_coord, width, height, headshot_pic);
+			render_time++;
+		}
+	}
+
+	if (knife_kill) 
+	{
+		var knife_pic = Render.AddTexture(knife_arr[1]);
+		if (render_time < 256) 
+		{
+			Render.TexturedRect(x_coord, y_coord, width, height, knife_pic);
+			render_time++;
+			if (render_time == 255)
+				j = 0;
+		}
+	}
+}
+
+function reset()
+{
+	return kill_count = 0;
+}
+
+Global.RegisterCallback("player_death", "killcount");
+Global.RegisterCallback("round_start", "reset");
+Global.RegisterCallback("player_connect_full", "reset");
+Global.RegisterCallback("client_disconnect", "reset");
+Global.RegisterCallback("round_prestart", "reset");
 
 Global.RegisterCallback("Draw", "on_draw");
